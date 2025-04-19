@@ -1,5 +1,4 @@
-const app = require('../server');  // Import the main app
-const express = require('express');
-const serverless = require('serverless-http');  // Import serverless-http to wrap Express app for serverless
+const app = require('../server');  // Import your main Express app
+const serverless = require('serverless-http');  // Import serverless-http
 
-module.exports.handler = serverless(app);  // Wrap the Express app with serverless
+module.exports.handler = serverless(app);  // Export the handler for Vercel to invoke
