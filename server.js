@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const v1Router = require('./v1/v1');
 
-
 const app = express();
 
 // Middleware
@@ -26,14 +25,10 @@ mongoose.connect(process.env.MONGODB_URI)
 // Routes
 app.use('/api/v1', v1Router);
 
-// Start server
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
+
+module.exports = app;  // Export the app for Vercel
