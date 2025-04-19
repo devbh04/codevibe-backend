@@ -1,37 +1,47 @@
-// api/index.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config({ path: '../.env' });
-console.log(process.env.MONGODB_URI);
+const serverless = require('serverless-http');
+require('dotenv').config({ path: require('path').resolve(process.cwd(), '.env') });
 
 const v1Router = require('../v1/v1');
 
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
-}));
+app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => {
+let isConnected = false;
+async function connectToDB() {
+  if (isConnected) return;
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    isConnected = true;
+    console.log('Connected to MongoDB');
+  } catch (err) {
     console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
+    throw err;
+  }
+}
 
-// Routes
+// Ensure DB connection before each request
+app.use(async (req, res, next) => {
+  await connectToDB();
+  next();
+});
+
 app.use('/api/v1', v1Router);
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Backend root working 🚀' });
+});
 
 // Error handling
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Error:', err.stack);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
-module.exports = app;
+// Export as serverless function
+module.exports = serverless(app);
