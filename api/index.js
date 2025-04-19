@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config({ path: '../.env' });
+console.log(process.env.MONGODB_URI);
 
 const v1Router = require('../v1/v1');
 
