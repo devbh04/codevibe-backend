@@ -18,6 +18,7 @@ geminiRouter.post('/evaluate', async (req, res) => {
     // Prepare the prompt for Gemini
     const prompt = `
       [IMPORTANT: RESPOND ONLY WITH VALID JSON, NO EXTRA TEXT OR MARKDOWN, Include only the TestCases Provided below. DO NOT ADD MORE TESTCASES.]
+      [IMPORTANT: IF CODE IS NOT THERE THEN FAIL ThE USER]
       Evaluate this code against the given test cases and provide detailed feedback:
 
       Code:

@@ -112,12 +112,13 @@ discussionRouter.post('/:postId/comments', async (req, res) => {
       { $push: { comments: savedComment._id } }
     );
 
-    // Update user's comments array
+    // Update user's comments array - now including the comment ID
     await User.findByIdAndUpdate(
       userId,
       {
         $push: {
           comments: {
+            _id: savedComment._id, // Store the comment's own ID
             postId,
             text,
             postTitle,
@@ -133,6 +134,77 @@ discussionRouter.post('/:postId/comments', async (req, res) => {
     res.status(500).json({ 
       message: 'Failed to add comment',
       error: error.message 
+    });
+  }
+});
+// Add these new routes to your discussionRouter
+
+// Delete a discussion post
+discussionRouter.delete('/:postId', async (req, res) => {
+  try {
+    const postId = req.params.postId;
+
+    // Find and delete the post
+    const deletedPost = await DiscussionPost.findByIdAndDelete(postId);
+    if (!deletedPost) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Delete all comments associated with this post
+    await Comment.deleteMany({ postId });
+
+    // Remove from user's discussions
+    await User.updateMany(
+      { 'discussions.postId': postId },
+      { $pull: { discussions: { postId } } }
+    );
+
+    res.json({ message: 'Discussion deleted successfully' });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Failed to delete discussion',
+      error: error.message
+    });
+  }
+});
+
+// Update the comment deletion endpoint
+discussionRouter.delete('/comments/:commentId', async (req, res) => {
+  try {
+    const { commentId } = req.params;
+
+    // 1. First delete the comment itself
+    const deletedComment = await Comment.findByIdAndDelete(commentId);
+    if (!deletedComment) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Comment not found' 
+      });
+    }
+
+    // 2. Remove from DiscussionPost's comments array
+    await DiscussionPost.findByIdAndUpdate(
+      deletedComment.postId,
+      { $pull: { comments: commentId } }
+    );
+
+    // 3. Remove from User's comments array using the stored _id
+    await User.updateOne(
+      { 'comments._id': commentId },
+      { $pull: { comments: { _id: commentId } } }
+    );
+
+    res.json({ 
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete comment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

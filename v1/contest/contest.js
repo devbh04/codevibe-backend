@@ -104,22 +104,45 @@ contestRouter.post('/submit', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const submission = {
-      contestId,
+    const submissionData = {
       code,
       language,
       successful: successful === 'yes',
       submittedAt: new Date()
     };
 
+    // Check if user already has a submission for this contest
+    const existingSubmissionIndex = user.contests.findIndex(
+      sub => sub.contestId.toString() === contestId
+    );
+
+    let update;
+    if (existingSubmissionIndex >= 0) {
+      // Update existing submission
+      update = {
+        $set: {
+          [`contests.${existingSubmissionIndex}`]: {
+            contestId,
+            ...submissionData
+          }
+        }
+      };
+    } else {
+      // Add new submission
+      update = {
+        $push: {
+          contests: {
+            contestId,
+            ...submissionData
+          }
+        }
+      };
+    }
+
     // Update user's contests
     await User.findByIdAndUpdate(
       userId,
-      {
-        $push: {
-          contests: submission
-        }
-      },
+      update,
       { new: true }
     );
 
@@ -128,8 +151,8 @@ contestRouter.post('/submit', async (req, res) => {
       contest: {
         title: contest.title,
         company: contest.company,
-        successful: submission.successful,
-        submittedAt: submission.submittedAt
+        successful: submissionData.successful,
+        submittedAt: submissionData.submittedAt
       }
     });
   } catch (err) {
