@@ -8,6 +8,8 @@ const jwt = require('jsonwebtoken');
 authRouter.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(email)
+    console.log(password)
 
     // Check if user exists
     const user = await User.findOne({ email });
@@ -48,6 +50,9 @@ authRouter.post('/login', async (req, res) => {
 authRouter.post('/signup', async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    console.log(name)
+    console.log(email)
+    console.log(password)
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
