@@ -1,100 +1,55 @@
 const express = require('express');
-const authRouter = express.Router();
-const User = require('../models/User'); // We'll create this model
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const authRouter = express.Router();
+require('dotenv').config({ path: '../../.env' });
 
-// Login route
-authRouter.post('/login', async (req, res) => {
+const JWT_SECRET = process.env.JWT_SECRET || 'JWT_SECRET'; // Set securely in .env
+console.log(JWT_SECRET)
+
+// Register
+authRouter.post('/register', async (req, res) => {
+  const { name, email, password } = req.body;
+
   try {
-    const { email, password } = req.body;
-    console.log(email)
-    console.log(password)
+    const userExists = await User.findOne({ email });
+    if (userExists) return res.status(400).json({ error: 'User already exists' });
 
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'User not found' });
-    }
-
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-      { id: user._id, email: user.email },
-      'JWT_SECRET',
-      { expiresIn: '1h' }
-    );
-
-    // Return user data (excluding password) and token
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      postsCreated: user.postsCreated,
-      problemsSolved: user.problemsSolved,
-      commentsCreated: user.commentsCreated
-    };
-
-    res.status(200).json({ token, user: userData });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ name, email, password: hashedPassword });
+    
+    res.status(201).json({ user: { name: user.name, email: user.email }, message: 'Registered successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Signup route
-authRouter.post('/signup', async (req, res) => {
+// Login
+authRouter.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
   try {
-    const { name, email, password } = req.body;
-    console.log(name)
-    console.log(email)
-    console.log(password)
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: 'User not found' });
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1d' });
 
-    // Create new user
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      postsCreated: [],
-      problemsSolved: [],
-      commentsCreated: []
+    res.json({
+      token,
+      user: {
+        name: user.name,
+        email: user.email,
+        postCreated: user.postCreated,
+        contestCreated: user.contestCreated,
+        commentCreated: user.commentCreated,
+      }
     });
-
-    await newUser.save();
-
-    // Create JWT token
-    const token = jwt.sign(
-      { id: newUser._id, email: newUser.email },
-      'JWT_SECRET',
-      { expiresIn: '1h' }
-    );
-
-    // Return user data (excluding password) and token
-    const userData = {
-      _id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      postsCreated: newUser.postsCreated,
-      problemsSolved: newUser.problemsSolved,
-      commentsCreated: newUser.commentsCreated
-    };
-
-    res.status(201).json({ token, user: userData });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

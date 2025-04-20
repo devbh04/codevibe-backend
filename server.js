@@ -3,7 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const v1Router = require('./v1/v1');
-
+const PORT = process.env.PORT || 5000;
 const app = express();
 
 // Middleware
@@ -31,4 +31,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-module.exports = app;  // Export the app for Vercel
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+module.exports = app;
