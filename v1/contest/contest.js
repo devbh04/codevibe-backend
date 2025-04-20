@@ -1,6 +1,7 @@
 const express = require('express');
 const contestRouter = express.Router();
 const Contest = require('../models/ContestDB');
+const User = require('../models/User');
 
 // Create a new contest
 contestRouter.post('/', async (req, res) => {
@@ -86,5 +87,59 @@ contestRouter.get('/:id', async (req, res) => {
         });
     }
 });
+
+contestRouter.post('/submit', async (req, res) => {
+  try {
+    const { contestId, code, language, successful, userId } = req.body;
+    
+    // Verify contest exists
+    const contest = await Contest.findById(contestId);
+    if (!contest) {
+      return res.status(404).json({ error: 'Contest not found' });
+    }
+
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const submission = {
+      contestId,
+      code,
+      language,
+      successful: successful === 'yes',
+      submittedAt: new Date()
+    };
+
+    // Update user's contests
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        $push: {
+          contests: submission
+        }
+      },
+      { new: true }
+    );
+
+    res.json({
+      message: 'Contest submitted successfully',
+      contest: {
+        title: contest.title,
+        company: contest.company,
+        successful: submission.successful,
+        submittedAt: submission.submittedAt
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ 
+      error: 'Server error',
+      details: err.message 
+    });
+  }
+});
+
 
 module.exports = contestRouter;
