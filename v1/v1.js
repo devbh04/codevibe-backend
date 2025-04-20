@@ -2,6 +2,7 @@ const express = require('express');
 const discussionRouter = require('./discussion/discussion');
 const contestRouter = require('./contest/contest');
 const geminiRouter = require('./gemini/gemini');
+const authRouter = require('./auth/auth');
 
 const v1Router = express.Router();
 
@@ -15,6 +16,7 @@ v1Router.use((req, res, next) => {
 v1Router.use('/discussion', discussionRouter);
 v1Router.use('/contests', contestRouter); // Add contest routes
 v1Router.use('/gemini', geminiRouter);
+v1Router.use('/auth', authRouter);
 
 // Health check endpoint
 v1Router.get('/health', (req, res) => {
