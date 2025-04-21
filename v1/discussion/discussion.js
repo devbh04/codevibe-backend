@@ -144,22 +144,34 @@ discussionRouter.delete('/:postId', async (req, res) => {
   try {
     const postId = req.params.postId;
 
-    // Find and delete the post
-    const deletedPost = await DiscussionPost.findByIdAndDelete(postId);
-    if (!deletedPost) {
+    // 1. First find the post to get its comments
+    const post = await DiscussionPost.findById(postId);
+    if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    // Delete all comments associated with this post
-    await Comment.deleteMany({ postId });
+    // 2. Get all comment IDs from this post
+    const commentIds = post.comments || [];
 
-    // Remove from user's discussions
+    // 3. Delete the post
+    await DiscussionPost.findByIdAndDelete(postId);
+
+    // 4. Delete all comments associated with this post
+    await Comment.deleteMany({ _id: { $in: commentIds } });
+
+    // 5. Remove comments from users' comments arrays
+    await User.updateMany(
+      { 'comments.postId': postId },
+      { $pull: { comments: { postId } } }
+    );
+
+    // 6. Remove from user's discussions
     await User.updateMany(
       { 'discussions.postId': postId },
       { $pull: { discussions: { postId } } }
     );
 
-    res.json({ message: 'Discussion deleted successfully' });
+    res.json({ message: 'Discussion and associated comments deleted successfully' });
   } catch (error) {
     res.status(500).json({
       message: 'Failed to delete discussion',
@@ -173,23 +185,36 @@ discussionRouter.delete('/comments/:commentId', async (req, res) => {
   try {
     const { commentId } = req.params;
 
-    // 1. First delete the comment itself
-    const deletedComment = await Comment.findByIdAndDelete(commentId);
-    if (!deletedComment) {
+    // 1. First find the comment to get its postId
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+      // Check if comment exists in any user's comments (in case post was deleted but comment reference remains)
+      const userWithComment = await User.findOne({ 'comments._id': commentId });
+      if (userWithComment) {
+        // Clean up the orphaned comment reference
+        await User.updateOne(
+          { 'comments._id': commentId },
+          { $pull: { comments: { _id: commentId } } }
+        );
+      }
       return res.status(404).json({ 
         success: false,
         message: 'Comment not found' 
       });
     }
 
-    // 2. Remove from DiscussionPost's comments array
+    // 2. Delete the comment
+    await Comment.findByIdAndDelete(commentId);
+
+    // 3. Remove from DiscussionPost's comments array if post still exists
     await DiscussionPost.findByIdAndUpdate(
-      deletedComment.postId,
-      { $pull: { comments: commentId } }
+      comment.postId,
+      { $pull: { comments: commentId } },
+      { new: true }
     );
 
-    // 3. Remove from User's comments array using the stored _id
-    await User.updateOne(
+    // 4. Remove from User's comments array
+    await User.updateMany(
       { 'comments._id': commentId },
       { $pull: { comments: { _id: commentId } } }
     );
